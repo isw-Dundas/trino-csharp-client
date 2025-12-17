@@ -96,9 +96,15 @@ namespace Trino.Data.ADO.Utilities
             }
 
             // Prevent SQL injection by limiting restriction values to legal table names which means alphanumeric and underscores
-            foreach (string value in restrictionValues)
+            foreach (string value in restrictionValues.Where(v => !string.IsNullOrEmpty(v)))
             {
-                if (!string.IsNullOrEmpty(value) && !legalIdentifierName.IsMatch(value))
+                // KM - In information_schema.tables the column table_type contains values 'VIEW' and 'BASE TABLE' which includes a space, so we cannot enforce the regex on all restriction values.
+                // We special case this value and skip the regex check for it.
+                if (restrictionMapping.Any(m => m.RestrictionType == SchemaRestrictionType.TableType) && value == "BASE TABLE")
+                {
+                    continue;
+                }
+                else if (!legalIdentifierName.IsMatch(value))
                 {
                     throw new ArgumentException($"Illegal restriction value {value}. Restriction values must be alphanumeric and underscores.");
                 }
