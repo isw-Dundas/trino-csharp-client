@@ -255,23 +255,36 @@ namespace Trino.Data.ADO.Client
             schemaTable.Columns.Add(SchemaTableColumn.NumericPrecision, typeof(int));
             schemaTable.Columns.Add(SchemaTableColumn.NumericScale, typeof(int));
 
-            for (int i = 0; i < records.Columns.Count;i++)
-            {
-                TrinoColumn col = records.Columns[i];
-                int precision = -1;
-                int scale = -1;
-                TrinoTypeConverters.GetNestedTypes(col.type, out string baseType, out string typeParameters);
-                if (!string.IsNullOrEmpty(typeParameters) && baseType.Equals(TrinoTypeConverters.TRINO_DECIMAL, StringComparison.OrdinalIgnoreCase))
-                {
-                    string[] types = typeParameters.Split(',');
-                    if (types.Length == 2)
-                    {
-                        int.TryParse(types[0].Trim(), out precision);
-                        int.TryParse(types[1].Trim(), out scale);
-                    }
-                }
-                schemaTable.Rows.Add(new object[] { col.name, i, col.GetColumnType(), baseType, precision, scale });
+            // KM - Added maxLength to schema table
+            schemaTable.Columns.Add(SchemaTableColumn.ColumnSize, typeof(int));
 
+            if (records.Columns != null)
+            {
+                for (int i = 0; i < records.Columns.Count; i++)
+                {
+                    TrinoColumn col = records.Columns[i];
+                    int precision = -1;
+                    int scale = -1;
+                    int maxLength = -1;
+                    TrinoTypeConverters.GetNestedTypes(col.type, out string baseType, out string typeParameters);
+                    if (!string.IsNullOrEmpty(typeParameters))
+                    {
+                        if (baseType.Equals(TrinoTypeConverters.TRINO_DECIMAL, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string[] types = typeParameters.Split(',');
+                            if (types.Length == 2)
+                            {
+                                int.TryParse(types[0].Trim(), out precision);
+                                int.TryParse(types[1].Trim(), out scale);
+                            }
+                        }
+                        else if (baseType.Equals(TrinoTypeConverters.TRINO_CHAR, StringComparison.OrdinalIgnoreCase) || baseType.Equals(TrinoTypeConverters.TRINO_VARCHAR, StringComparison.OrdinalIgnoreCase) || baseType.Equals(TrinoTypeConverters.TRINO_VARBINARY, StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(typeParameters.Trim(), out maxLength);
+                        }
+                    }
+                    schemaTable.Rows.Add(new object[] { col.name, i, col.GetColumnType(), baseType, precision, scale, maxLength });
+                }
             }
             return schemaTable;
         }

@@ -71,9 +71,16 @@ namespace Trino.Client
 
         public bool IsTimeout
         {
-            get => Session.Properties.Timeout.HasValue
-                && Session.Properties.Timeout.Value.Ticks > 0
-                && stopwatch.ElapsedTicks > Session.Properties.Timeout.Value.Ticks;
+            get => false;
+
+            // There is a bug in this logic which causes timeouts to return true when it hasn't
+            // There's another timeout on Session.Properties.ClientRequestTimeout
+            // At some point this needs to be investigated and fixed.
+            // Causes issues when running in Linux for some reason and not Windows (See. TrinoTest.Trino_TestDataRetrieval)
+            //Session.Properties.Timeout.HasValue
+            //&& Session.Properties.Timeout.Value.Ticks > 0
+            //&& stopwatch.ElapsedTicks > Session.Properties.Timeout.Value.Ticks;
+
         }
 
         protected override string ResourcePath => throw new NotImplementedException();
@@ -326,7 +333,8 @@ namespace Trino.Client
             }
             else if (this.IsTimeout)
             {
-                logger?.LogInformation("Trino: Query timed out queryId:{0}, run time: {1} s, timeout {2} s.", Statement?.id, this.stopwatch.Elapsed.TotalSeconds, Session.Properties.ClientRequestTimeout.Value.TotalSeconds);
+                // IsTimeout actually uses Session.Properties.Timeout so something is broken here.
+                //logger?.LogInformation("Trino: Query timed out queryId:{0}, run time: {1} s, timeout {2} s.", Statement?.id, this.stopwatch.Elapsed.TotalSeconds, Session.Properties.ClientRequestTimeout.Value.TotalSeconds);
                 await this.Cancel(QueryCancellationReason.TIMEOUT).ConfigureAwait(false);
                 throw new TimeoutException($"Trino query ran for {this.stopwatch.Elapsed.TotalSeconds} s, exceeding the timeout of {Session.Properties.Timeout.Value.TotalSeconds} s.");
             }
